@@ -92,7 +92,7 @@ what:
 generic aix osf alpha dynix:
 	@make REAL_DAEMON_DIR=$(REAL_DAEMON_DIR) STYLE=$(STYLE) \
 	LIBS= RANLIB=ranlib ARFLAGS=rv AUX_OBJ=setenv.o \
-	NETGROUP=-DNETGROUP TLI= all
+	NETGROUP=-DNETGROUP TLI= IPV6="$(IPV6)" all
 
 # Ditto, with vsyslog
 sunos4:
@@ -134,17 +134,17 @@ epix:
 386bsd netbsd bsdos:
 	@make REAL_DAEMON_DIR=$(REAL_DAEMON_DIR) STYLE=$(STYLE) \
 	LIBS= RANLIB=ranlib ARFLAGS=rv AUX_OBJ= NETGROUP= TLI= \
-	EXTRA_CFLAGS=-DSYS_ERRLIST_DEFINED VSYSLOG= all
+	EXTRA_CFLAGS=-DUSE_STRERROR VSYSLOG= all
 
 freebsd:
 	@make REAL_DAEMON_DIR=$(REAL_DAEMON_DIR) STYLE=$(STYLE) \
 	LIBS= RANLIB=ranlib ARFLAGS=rv AUX_OBJ= NETGROUP= TLI= \
-	EXTRA_CFLAGS=-DSYS_ERRLIST_DEFINED VSYSLOG= all
+	EXTRA_CFLAGS=-DUSE_STRERROR VSYSLOG= all
 
 linux:
 	@make REAL_DAEMON_DIR=$(REAL_DAEMON_DIR) STYLE=$(STYLE) \
 	LIBS= RANLIB=ranlib ARFLAGS=rv AUX_OBJ=setenv.o \
-	NETGROUP= TLI= EXTRA_CFLAGS="-DBROKEN_SO_LINGER" all
+	NETGROUP= TLI= EXTRA_CFLAGS="-DBROKEN_SO_LINGER -DUSE_STRERROR" all
 
 # This is good for many SYSV+BSD hybrids with NIS, probably also for HP-UX 7.x.
 hpux hpux8 hpux9 hpux10:
@@ -191,10 +191,11 @@ irix6:
 
 # SunOS 5.x is another SYSV4 variant.
 sunos5:
-	@make REAL_DAEMON_DIR=$(REAL_DAEMON_DIR) STYLE=$(STYLE) \
+	@$(MAKE) REAL_DAEMON_DIR=$(REAL_DAEMON_DIR) STYLE=$(STYLE) \
 	LIBS="-lsocket -lnsl" RANLIB=echo ARFLAGS=rv VSYSLOG= \
 	NETGROUP=-DNETGROUP AUX_OBJ=setenv.o TLI=-DTLI \
-	BUGS="$(BUGS) -DSOLARIS_24_GETHOSTBYNAME_BUG" all
+	BUGS="$(BUGS) -DSOLARIS_24_GETHOSTBYNAME_BUG" IPV6="$(IPV6)" \
+	EXTRA_CFLAGS=-DUSE_STRERROR all
 
 # Generic SYSV40
 esix sysv4:
@@ -474,6 +475,18 @@ BUGS = -DGETPEERNAME_BUG -DBROKEN_FGETS -DLIBC_CALLS_STRTOK
 
 VSYSLOG	= -Dvsyslog=myvsyslog
 
+###############################################################
+# System dependencies: whether or not your system has IPV6
+#
+# If your system has IPv6 and supports getipnode* and inet_pton/inet_ntop
+# uncomment the following (Solaris 8)
+
+# IPV6 = -DHAVE_IPV6
+
+# If your system does not have getipnodebyname() but uses the obsolete
+# gethostbyname2() instead, use this (AIX)
+# IPV6 = -DHAVE_IPV6 -DUSE_GETHOSTBYNAME2
+
 # End of the system dependencies.
 #################################
 
@@ -664,7 +677,7 @@ CFLAGS	= -O -DFACILITY=$(FACILITY) $(ACCESS) $(PARANOID) $(NETGROUP) \
 	-DREAL_DAEMON_DIR=\"$(REAL_DAEMON_DIR)\" $(STYLE) $(KILL_OPT) \
 	-DSEVERITY=$(SEVERITY) -DRFC931_TIMEOUT=$(RFC931_TIMEOUT) \
 	$(UCHAR) $(TABLES) $(STRINGS) $(TLI) $(EXTRA_CFLAGS) $(DOT) \
-	$(VSYSLOG) $(HOSTNAME)
+	$(VSYSLOG) $(HOSTNAME) $(IPV6)
 
 LIB_OBJ= hosts_access.o options.o shell_cmd.o rfc931.o eval.o \
 	hosts_ctl.o refuse.o percent_x.o clean_exit.o $(AUX_OBJ) \
@@ -697,6 +710,8 @@ config-check:
 	then rm /tmp/cflags.$$$$ ; \
 	else mv /tmp/cflags.$$$$ cflags ; \
 	fi >/dev/null 2>/dev/null
+
+cflags: config-check
 
 $(LIB):	$(LIB_OBJ)
 	rm -f $(LIB)
